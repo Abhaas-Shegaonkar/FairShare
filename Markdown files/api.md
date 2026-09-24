@@ -43,7 +43,7 @@ Errors return standard HTTP 4xx/5xx codes with an error descriptor:
 ## 2. Authentication & Student Profile (`/api/auth`)
 
 ### 2.1 Register Student
-Creates student profile and returns session token.
+Creates student profile, automatically claims any pending project invitations, and returns session token.
 
 - **Endpoint:** `POST /api/auth/register`
 - **Frontend Trigger:** `SignupPage.jsx`
@@ -66,6 +66,7 @@ Creates student profile and returns session token.
       "name": "Abhaas",
       "avatar_url": null
     },
+    "claimed_invitations": 1,
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
   }
 }
@@ -152,6 +153,8 @@ Creates student profile and returns session token.
 ---
 
 ### 3.2 Create Project & Team
+Creates project workspace. Members who already possess FairShare accounts are immediately mapped to `project_members`; unregistered emails are queued in `project_invitations`.
+
 - **Endpoint:** `POST /api/projects`
 - **Frontend Trigger:** `CreateProjectPage.jsx`
 - **Request Body:**
@@ -177,6 +180,8 @@ Creates student profile and returns session token.
   "data": {
     "project_id": "a1b2c3d4-0000-0000-0000-000000000001",
     "name": "Smart Water Management System",
+    "active_members_count": 4,
+    "pending_invitations_count": 0,
     "created_at": "2026-08-01T10:00:00Z"
   }
 }
@@ -237,6 +242,10 @@ Creates student profile and returns session token.
         "id": "u1",
         "name": "Abhaas"
       },
+      "completed_by": {
+        "id": "u1",
+        "name": "Abhaas"
+      },
       "completed_at": "2026-09-19T14:30:00Z",
       "is_on_time": true,
       "evidence_count": 2,
@@ -285,7 +294,7 @@ Creates student profile and returns session token.
   "status": "Completed"
 }
 ```
-- **Server Behavior:** When set to `Completed`, server automatically records `completed_at = now()`, determines `is_on_time` against `deadline`, and generates an immutable record in `activity_logs`.
+- **Server Behavior:** When set to `Completed`, server automatically records `completed_at = now()`, sets `completed_by = current_user_id`, determines `is_on_time` against `deadline`, and generates an immutable record in `activity_logs`.
 - **Success Response (`200 OK`):**
 ```json
 {
@@ -293,6 +302,7 @@ Creates student profile and returns session token.
   "data": {
     "id": "t21",
     "status": "Completed",
+    "completed_by": "u2",
     "completed_at": "2026-09-14T09:15:22Z",
     "is_on_time": true
   }
@@ -301,9 +311,33 @@ Creates student profile and returns session token.
 
 ---
 
-## 5. Work Evidence Submissions (`/api/evidence`)
+## 5. File Storage & Work Evidence Submissions (`/api/upload`, `/api/evidence`)
 
-### 5.1 Submit Evidence for Task
+### 5.1 Upload File / Artifact
+Uploads a binary artifact (image, document, PDF) to the project's Supabase Storage bucket.
+
+- **Endpoint:** `POST /api/upload`
+- **Frontend Trigger:** File input in `SubmitEvidenceModal.jsx`
+- **Headers:** `Content-Type: multipart/form-data`, `Authorization: Bearer <token>`
+- **Request Form Data:**
+  - `file`: Binary file data
+  - `project_id`: Project UUID
+- **Success Response (`201 Created`):**
+```json
+{
+  "success": true,
+  "data": {
+    "url": "https://xyzcompany.supabase.co/storage/v1/object/public/evidence/proj-1/auth_flow.png",
+    "file_name": "auth_flow.png",
+    "file_size": 245100,
+    "mime_type": "image/png"
+  }
+}
+```
+
+---
+
+### 5.2 Submit Evidence for Task
 - **Endpoint:** `POST /api/tasks/:id/evidence`
 - **Frontend Trigger:** `SubmitEvidenceModal.jsx`
 - **Request Body:**
@@ -332,7 +366,7 @@ Creates student profile and returns session token.
 
 ---
 
-### 5.2 Get Evidence Vault for Project
+### 5.3 Get Evidence Vault for Project
 - **Endpoint:** `GET /api/projects/:id/evidence`
 - **Frontend Trigger:** `EvidenceList.jsx` (Project Evidence Tab)
 - **Success Response (`200 OK`):**
@@ -458,7 +492,7 @@ Creates student profile and returns session token.
         "score": 85.0,
         "weight": 20,
         "points": 17.0,
-        "label": "15 of 18 tasks on time",
+        "label": "17 of 20 tasks on time",
         "explanation": "85% of your completed tasks were finalized prior to the set deadline."
       },
       "work_evidence": {
@@ -469,18 +503,18 @@ Creates student profile and returns session token.
         "explanation": "80% of your completed deliverables contain verifiable links or documents."
       },
       "peer_feedback": {
-        "score": 78.0,
+        "score": 75.0,
         "weight": 20,
-        "points": 15.6,
-        "label": "Average 3.9 / 5.0 peer rating",
+        "points": 15.0,
+        "label": "Average 3.75 / 5.0 peer rating",
         "explanation": "Calculated across 3 anonymous teammate evaluations across all 6 core categories."
       },
       "participation": {
-        "score": 75.0,
+        "score": 70.0,
         "weight": 10,
-        "points": 7.5,
-        "label": "24 verified project actions",
-        "explanation": "Consistently logged activity records showing steady participation throughout the project."
+        "points": 7.0,
+        "label": "21 verified project actions",
+        "explanation": "Consistently logged activity records showing steady participation throughout the project relative to team benchmark."
       }
     }
   }
@@ -549,7 +583,7 @@ Creates student profile and returns session token.
         "task_completion_rate": "90%",
         "timeliness_rate": "85%",
         "evidence_submissions": 16,
-        "peer_rating": "4.2 / 5.0"
+        "peer_rating": "3.75 / 5.0"
       },
       {
         "name": "Rohit",

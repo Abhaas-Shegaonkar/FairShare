@@ -244,11 +244,11 @@ Prototype scoring model:
 - **Participation (10%):** Measures meaningful project activity and participation.
 
 Example (Abhaas):
-- Task Completion: 90%
-- Timeliness: 85%
-- Work Evidence: 80%
-- Peer Feedback: 78%
-- Participation: 75%
+- Task Completion: 90% (Weight 30% -> 27.0%)
+- Timeliness: 85% (Weight 20% -> 17.0%)
+- Work Evidence: 80% (Weight 20% -> 16.0%)
+- Peer Feedback: 75% (Weight 20% -> 15.0%)
+- Participation: 70% (Weight 10% -> 7.0%)
 **Overall Contribution Score: 82%**
 
 The exact formula and weights should be clearly visible to users.
@@ -265,11 +265,11 @@ Instead of only showing "Abhaas — 82%", show:
 
 **Contribution Score: 82%**
 Breakdown:
-- Task Completion: 90%
-- Timeliness: 85%
-- Work Evidence: 80%
-- Peer Feedback: 78%
-- Participation: 75%
+- Task Completion: 90% (27.0%)
+- Timeliness: 85% (17.0%)
+- Work Evidence: 80% (16.0%)
+- Peer Feedback: 75% (15.0%)
+- Participation: 70% (7.0%)
 
 Use progress bars or simple charts.
 This makes the score transparent and helps answer: **"Why did I receive this contribution score?"**
@@ -511,7 +511,7 @@ Keep the prototype simple.
 - Flask
 
 **Database:**
-- SQLite for prototype
+- Supabase (PostgreSQL) for cloud persistence (SQLite supported for optional local offline testing)
 
 **Charts:**
 - Recharts or Chart.js

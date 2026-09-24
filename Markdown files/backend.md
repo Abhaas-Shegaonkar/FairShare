@@ -58,6 +58,7 @@ fairshare-backend/
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
     name VARCHAR(255) NOT NULL,
     avatar_url TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
@@ -78,7 +79,7 @@ CREATE TABLE projects (
 );
 ```
 
-### 3.3 Project Members (`project_members`)
+### 3.3 Project Members (`project_members`) & Invitations (`project_invitations`)
 ```sql
 CREATE TABLE project_members (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -87,6 +88,17 @@ CREATE TABLE project_members (
     role VARCHAR(100) NOT NULL, -- e.g., "Frontend Lead", "Backend Developer"
     joined_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     UNIQUE(project_id, user_id)
+);
+
+CREATE TABLE project_invitations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+    email VARCHAR(255) NOT NULL,
+    role VARCHAR(100) NOT NULL,
+    invited_by UUID REFERENCES users(id) ON DELETE CASCADE,
+    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'declined')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    UNIQUE(project_id, email)
 );
 ```
 
@@ -101,6 +113,7 @@ CREATE TABLE tasks (
     priority VARCHAR(20) DEFAULT 'Medium' CHECK (priority IN ('Low', 'Medium', 'High')),
     status VARCHAR(20) DEFAULT 'To Do' CHECK (status IN ('To Do', 'In Progress', 'Completed')),
     assigned_to UUID REFERENCES users(id) ON DELETE SET NULL,
+    completed_by UUID REFERENCES users(id) ON DELETE SET NULL,
     completed_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -152,6 +165,18 @@ CREATE TABLE peer_feedback (
 );
 ```
 
+### 3.8 Contribution Snapshots (`contribution_snapshots`)
+```sql
+CREATE TABLE contribution_snapshots (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    week_label VARCHAR(50) NOT NULL, -- e.g., "Week 1", "Week 2"
+    score NUMERIC(5,2) NOT NULL CHECK (score BETWEEN 0 AND 100),
+    snapshot_date DATE DEFAULT CURRENT_DATE NOT NULL
+);
+```
+
 ---
 
 ## 4. Core Scoring Engine Logic (`services/scoring_engine.py`)
@@ -182,8 +207,9 @@ Where:
    *(If no peer reviews have been submitted yet, this component defaults to 100% or is proportionally redistributed to avoid penalizing early stage progress).*
 
 5. **Participation Activity ($S_{\text{participation}}$, 10%):**
-   Calculates user's verified actions logged in `activity_logs` relative to the team's average activity count:
-   $$S_{\text{participation}} = \min\left(100, \frac{\text{User Activity Count}}{\max(1, \text{Team Average Activity Count})} \times 80 + 20\right)$$
+   Calculates user's verified actions logged in `activity_logs` relative to the project activity benchmark:
+   $$S_{\text{participation}} = \min\left(100, \frac{\text{User Activity Count}}{\max(1, \text{Target Activity Count})} \times 100\right)$$
+   Where $\text{Target Activity Count} = \max(\text{Team Average Activity Count}, 20)$.
 
 ### 4.2 Explainability Output Structure
 The scoring engine returns not just the aggregate number, but the exact explanation payload powering the frontend's *"Why did I get this score?"* modal:
@@ -204,7 +230,7 @@ The scoring engine returns not just the aggregate number, but the exact explanat
       "score": 85.0,
       "weight": 20,
       "contribution_points": 17.0,
-      "details": "15 out of 18 completed tasks were submitted on or before the deadline."
+      "details": "17 out of 20 completed tasks were submitted on or before the deadline."
     },
     "work_evidence": {
       "score": 80.0,
@@ -213,16 +239,16 @@ The scoring engine returns not just the aggregate number, but the exact explanat
       "details": "16 tasks have verified links or files attached."
     },
     "peer_feedback": {
-      "score": 78.0,
+      "score": 75.0,
       "weight": 20,
-      "contribution_points": 15.6,
-      "details": "Received an average peer rating of 3.9 / 5.0 across 3 teammate reviews."
+      "contribution_points": 15.0,
+      "details": "Received an average peer rating of 3.75 / 5.0 across 3 teammate reviews."
     },
     "participation": {
-      "score": 75.0,
+      "score": 70.0,
       "weight": 10,
-      "contribution_points": 7.5,
-      "details": "Logged 24 project actions, representing active engagement."
+      "contribution_points": 7.0,
+      "details": "Logged 21 project actions, representing active engagement against team benchmark."
     }
   }
 }
@@ -236,9 +262,11 @@ The scoring engine returns not just the aggregate number, but the exact explanat
 
 | Endpoint | Method | Description | Request Body | Response |
 |---|---|---|---|---|
-| `/api/auth/register` | POST | Register student | `{ email, password, name }` | `{ user, token }` |
+| `/api/auth/register` | POST | Register student & auto-claim pending project invites | `{ email, password, name }` | `{ user, token }` |
 | `/api/auth/login` | POST | Authenticate student | `{ email, password }` | `{ user, token }` |
 | `/api/auth/me` | GET | Retrieve authenticated profile | *Header: Bearer Token* | `{ user }` |
+
+*Registration Note:* When a user registers, the backend checks `project_invitations` for any matching `email`. For each pending invitation, it creates a `project_members` row and updates the invitation status to `accepted`.
 
 ---
 
@@ -247,9 +275,11 @@ The scoring engine returns not just the aggregate number, but the exact explanat
 | Endpoint | Method | Description | Request Body | Response |
 |---|---|---|---|---|
 | `/api/projects` | GET | List user's projects | None | `[{ id, name, category, deadline, progress, members_count }]` |
-| `/api/projects` | POST | Create project & team | `{ name, description, category, start_date, deadline, members: [{ email, role }] }` | `{ project, members }` |
-| `/api/projects/<id>` | GET | Get project details | None | `{ project, members, stats }` |
-| `/api/projects/<id>/members` | POST | Add member to team | `{ email, role }` | `{ member }` |
+| `/api/projects` | POST | Create project & team (invites members) | `{ name, description, category, start_date, deadline, members: [{ email, role }] }` | `{ project, members, pending_invites }` |
+| `/api/projects/<id>` | GET | Get project details | None | `{ project, members, pending_invites, stats }` |
+| `/api/projects/<id>/members` | POST | Add member or invite to team | `{ email, role }` | `{ member, status: "added" \| "invited" }` |
+
+*Invitation Note:* If an invited email exists in `users`, they are immediately added to `project_members`. If not, a record is added to `project_invitations`.
 
 ---
 
@@ -257,17 +287,18 @@ The scoring engine returns not just the aggregate number, but the exact explanat
 
 | Endpoint | Method | Description | Request Body | Response |
 |---|---|---|---|---|
-| `/api/projects/<id>/tasks` | GET | List all tasks for project | *Query: status, assignee* | `[{ id, title, priority, status, deadline, assigned_to, evidence_count }]` |
+| `/api/projects/<id>/tasks` | GET | List all tasks for project | *Query: status, assignee* | `[{ id, title, priority, status, deadline, assigned_to, completed_by, evidence_count }]` |
 | `/api/projects/<id>/tasks` | POST | Create a new task | `{ title, description, deadline, priority, assigned_to }` | `{ task }` |
 | `/api/tasks/<id>` | PUT | Update task details | `{ title, deadline, priority, assigned_to }` | `{ task }` |
-| `/api/tasks/<id>/status` | PATCH | Update task status | `{ status: "In Progress" \| "Completed" }` | `{ task }` *(Auto-logs completed_at & activity)* |
+| `/api/tasks/<id>/status` | PATCH | Update task status | `{ status: "In Progress" \| "Completed" }` | `{ task }` *(Auto-logs completed_at, completed_by, & activity)* |
 
 ---
 
-### 5.4 Work Evidence Endpoints (`/api/evidence`)
+### 5.4 File Storage & Work Evidence Endpoints (`/api/upload`, `/api/evidence`)
 
 | Endpoint | Method | Description | Request Body | Response |
 |---|---|---|---|---|
+| `/api/upload` | POST | Upload file/image to Supabase Storage | `multipart/form-data` (`file`, `project_id`) | `{ url, file_name, file_size }` |
 | `/api/tasks/<id>/evidence` | POST | Attach evidence to task | `{ type, title, url, notes }` | `{ evidence }` *(Logs activity)* |
 | `/api/tasks/<id>/evidence` | GET | Get evidence for task | None | `[{ id, type, title, url, submitted_at }]` |
 | `/api/projects/<id>/evidence`| GET | Get all evidence in project | None | `[{ id, task_title, member_name, type, url }]` |
@@ -292,6 +323,8 @@ The scoring engine returns not just the aggregate number, but the exact explanat
 | `/api/projects/<id>/team-comparison` | GET | List scores of all team members | `[{ user_id, name, role, score }]` |
 | `/api/projects/<id>/trends` | GET | Weekly progression history for line chart | `[{ week: "Week 1", scores: { "u1": 55, "u2": 50 } }, ...]` |
 | `/api/projects/<id>/report` | GET | Compile final project contribution report | `{ project, team_summary, members_detail, evidence_manifest }` |
+
+*Trend Snapshot Generation:* The backend service `services/scoring_engine.py` generates weekly snapshots on demand or at 7-day intervals from the project's `start_date`. For each past week milestone, it recalculates scores using the state of tasks, evidence, and activity up to that week's cutoff timestamp and caches the result into `contribution_snapshots`.
 
 ---
 

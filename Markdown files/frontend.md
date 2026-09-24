@@ -174,6 +174,7 @@ fairshare-frontend/
 - **Step 2: Team Members & Roles:**
   - Dynamic member input fields: Name / Email + Role (e.g., `Abhaas - Frontend`, `Rohit - Backend`).
   - System flags the creator as Team Leader.
+  - Teammates with registered accounts are immediately added to the roster; invited emails not yet registered are stored as pending invitations and automatically mapped when the student signs up.
 - **Step 3: Confirmation:**
   - Summary review and `[Create Workspace]` trigger.
 
@@ -198,8 +199,9 @@ The heart of FairShare. Organized into 5 clean tabs:
   - Action buttons: `[Change Status]`, `[Submit Evidence]`, `[Task History]`.
 
 #### Tab 3: Work Evidence Vault (`EvidenceList.jsx`)
-- Repository of all proof of work uploaded by team members.
-- Filters: By Member, by Task, by Type (GitHub, Figma, Image, Docs).
+- Repository of all proof of work submitted by team members.
+- Supports both external URLs (GitHub PRs, Figma boards, Google Docs) and file uploads (Screenshots, PDFs, circuit schematics uploaded via `POST /api/upload` to Supabase Storage).
+- Filters: By Member, by Task, by Type (GitHub, Figma, Image, Docs, URL).
 - Each card displays: Task name, Member, Link/Preview, and Timestamp.
 
 #### Tab 4: Activity Timeline (`ActivityTimeline.jsx`)
@@ -222,21 +224,21 @@ Designed around the **Transparency & Explainability Principle**: No black-box sc
 2. **Task Completion:** `18 / 20 Tasks (90%)`
 3. **On-Time Rate:** `85% on-time delivery`
 4. **Evidence Submissions:** `16 verified artifacts`
-5. **Peer Review Average:** `4.2 / 5.0`
+5. **Peer Review Average:** `3.75 / 5.0 (75%)`
 
 #### Component: Score Breakdown (`ScoreFactorBreakdown.jsx`)
 Displays visual progress bars for each of the 5 weighted factors:
 - **Task Completion (30% weight):** `90%` -> Contributes `27.0%`
 - **Timeliness (20% weight):** `85%` -> Contributes `17.0%`
 - **Work Evidence (20% weight):** `80%` -> Contributes `16.0%`
-- **Peer Feedback (20% weight):** `78%` (3.9/5) -> Contributes `15.6%`
-- **Participation (10% weight):** `75%` -> Contributes `7.5%`
-- **Total Combined:** **83.1% (Rounded to 83%)**
+- **Peer Feedback (20% weight):** `75%` (3.75/5.0) -> Contributes `15.0%`
+- **Participation (10% weight):** `70%` -> Contributes `7.0%`
+- **Total Combined:** **82.0% (82%)**
 
 #### Component: Score Explainer Modal (`ScoreExplainerModal.jsx`)
 - Triggered when clicking any factor or the info button.
 - Shows the exact formula and reason:
-  - *"Why did I get 85% in Timeliness? You completed 17 out of 20 tasks before the specified deadline. 3 tasks were marked complete after the deadline."*
+  - *"Why did I get 85% in Timeliness? You completed 17 out of 20 tasks on or before the specified deadline. 3 tasks were finalized after the deadline."*
   - Includes anti-gaming disclaimer: *"Scores reflect verifiable tasks and peer reviews, not subjective judgements or total task counts."*
 
 #### Component: Team Contribution Comparison (`TeamComparisonChart.jsx`)
@@ -301,10 +303,10 @@ export const SAMPLE_PROJECT = {
   ],
   scoreBreakdownAbhaas: {
     taskCompletion: { score: 90, weight: 30, value: 27.0, label: "18 of 20 tasks completed" },
-    timeliness: { score: 85, weight: 20, value: 17.0, label: "15 of 18 tasks on schedule" },
+    timeliness: { score: 85, weight: 20, value: 17.0, label: "17 of 20 tasks on schedule" },
     workEvidence: { score: 80, weight: 20, value: 16.0, label: "16 evidence links attached" },
-    peerFeedback: { score: 78, weight: 20, value: 15.6, label: "Average 3.9 / 5.0 rating" },
-    participation: { score: 75, weight: 10, value: 7.5, label: "Regular activity updates logged" },
+    peerFeedback: { score: 75, weight: 20, value: 15.0, label: "Average 3.75 / 5.0 rating" },
+    participation: { score: 70, weight: 10, value: 7.0, label: "Regular activity updates logged" },
     total: 82
   },
   trendData: [

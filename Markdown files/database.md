@@ -20,12 +20,12 @@ FairShare uses **Supabase (PostgreSQL 15+)** as its relational database engine. 
        +------------------+
        |      users       |
        +------------------+
-         | 1            1 |
-         |                |
-         | N            N |
-+------------------+   +----------------------+
-|     projects     |---|   project_members    |
-+------------------+   +----------------------+
+         | 1     1      1 |
+         |       |        |
+         | N     | N    N |
++------------------+   +----------------------+   +---------------------+
+|     projects     |---|   project_members    |   | project_invitations |
++------------------+   +----------------------+   +---------------------+
   | 1       | 1            | 1
   |         |              |
   | N       | N            | N
@@ -36,9 +36,9 @@ FairShare uses **Supabase (PostgreSQL 15+)** as its relational database engine. 
   | 1
   |
   | N
-+------------------+
-|      tasks       |
-+------------------+
++------------------+   +-------------------------+
+|      tasks       |   | contribution_snapshots  |
++------------------+   +-------------------------+
   | 1
   |
   | N
@@ -49,23 +49,26 @@ FairShare uses **Supabase (PostgreSQL 15+)** as its relational database engine. 
 
 ### Relationship Summary
 - **Users to Projects:** Many-to-Many via `project_members`.
+- **Projects to Invitations:** One-to-Many via `project_invitations` (pending invites).
 - **Projects to Tasks:** One-to-Many.
 - **Tasks to Evidence:** One-to-Many (one task can have multiple supporting artifacts).
-- **Users to Tasks:** One-to-Many (assigned user).
+- **Users to Tasks:** One-to-Many (assigned user & completing user).
 - **Projects to Activity Logs:** One-to-Many (chronological event stream).
 - **Projects to Peer Feedback:** One-to-Many (directed evaluations between team members).
+- **Projects to Snapshots:** One-to-Many (weekly score checkpoints).
 
 ---
 
 ## 3. Detailed Table Definitions
 
 ### 3.1 `users` (Student Profiles)
-Stores core student account information. Synchronized with Supabase Auth or managed locally.
+Stores core student account information and credentials. Synchronized with Supabase Auth or managed locally via Flask authentication.
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
 | `id` | `UUID` | `PRIMARY KEY, DEFAULT gen_random_uuid()` | Unique user identifier |
 | `email` | `VARCHAR(255)` | `UNIQUE, NOT NULL` | Student email address |
+| `password_hash` | `VARCHAR(255)` | `NOT NULL` | Bcrypt hashed password string |
 | `name` | `VARCHAR(255)` | `NOT NULL` | Full student name |
 | `avatar_url` | `TEXT` | `NULL` | Profile picture / avatar image URL |
 | `created_at` | `TIMESTAMPTZ` | `DEFAULT now(), NOT NULL` | Registration timestamp |
@@ -104,7 +107,25 @@ Maps students to projects and defines their functional roles.
 
 ---
 
-### 3.4 `tasks` (Deliverables & Work Items)
+### 3.4 `project_invitations` (Pending Teammate Invites)
+Tracks invitations sent to students who have not yet registered or accepted project membership.
+
+| Column | Type | Constraints | Description |
+|---|---|---|---|
+| `id` | `UUID` | `PRIMARY KEY, DEFAULT gen_random_uuid()` | Unique invitation ID |
+| `project_id` | `UUID` | `REFERENCES projects(id) ON DELETE CASCADE` | Target project ID |
+| `email` | `VARCHAR(255)` | `NOT NULL` | Invited student's email address |
+| `role` | `VARCHAR(100)` | `NOT NULL` | Intended functional role |
+| `invited_by` | `UUID` | `REFERENCES users(id) ON DELETE CASCADE` | Inviter user ID |
+| `status` | `VARCHAR(20)` | `DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'declined'))` | Invite status |
+| `created_at` | `TIMESTAMPTZ` | `DEFAULT now(), NOT NULL` | Sent timestamp |
+
+**Composite Constraints:**
+- `UNIQUE(project_id, email)` — Only one active invite per email per project.
+
+---
+
+### 3.5 `tasks` (Deliverables & Work Items)
 Core entity for work management and the primary input for the **Task Completion (30%)** and **Timeliness (20%)** metrics.
 
 | Column | Type | Constraints | Description |
@@ -117,16 +138,18 @@ Core entity for work management and the primary input for the **Task Completion 
 | `priority` | `VARCHAR(20)` | `DEFAULT 'Medium' CHECK (priority IN ('Low', 'Medium', 'High'))` | Importance level |
 | `status` | `VARCHAR(20)` | `DEFAULT 'To Do' CHECK (status IN ('To Do', 'In Progress', 'Completed'))` | Workflow state |
 | `assigned_to` | `UUID` | `REFERENCES users(id) ON DELETE SET NULL` | Assignee responsible for work |
+| `completed_by`| `UUID` | `REFERENCES users(id) ON DELETE SET NULL` | Member who finalized the deliverable |
 | `completed_at` | `TIMESTAMPTZ` | `NULL` | Server timestamp when status changed to 'Completed' |
 | `created_at` | `TIMESTAMPTZ` | `DEFAULT now(), NOT NULL` | Task creation timestamp |
 
-**Business Logic Note on `completed_at`:**
+**Business Logic Note on `completed_at` & `completed_by`:**
+- When marked completed, `completed_at = now()` and `completed_by` is set to the actor.
 - If `completed_at <= deadline`, the task is flagged as **On Time**.
 - If `completed_at > deadline`, the task is marked as **Late** (reducing the Timeliness score factor).
 
 ---
 
-### 3.5 `evidence` (Verifiable Work Proof)
+### 3.6 `evidence` (Verifiable Work Proof)
 Stores attached proof of work (links, files, PRs), powering the **Work Evidence (20%)** score factor.
 
 | Column | Type | Constraints | Description |
@@ -142,7 +165,7 @@ Stores attached proof of work (links, files, PRs), powering the **Work Evidence 
 
 ---
 
-### 3.6 `activity_logs` (Immutable Project Audit Trail)
+### 3.7 `activity_logs` (Immutable Project Audit Trail)
 Chronological stream of all project events, powering the **Activity Timeline** and **Participation (10%)** score factor.
 
 | Column | Type | Constraints | Description |
@@ -156,7 +179,7 @@ Chronological stream of all project events, powering the **Activity Timeline** a
 
 ---
 
-### 3.7 `peer_feedback` (Teammate Evaluations)
+### 3.8 `peer_feedback` (Teammate Evaluations)
 Structured feedback across 6 dimensions, powering the **Peer Feedback (20%)** score factor.
 
 | Column | Type | Constraints | Description |
@@ -180,7 +203,7 @@ Structured feedback across 6 dimensions, powering the **Peer Feedback (20%)** sc
 
 ---
 
-### 3.8 `contribution_snapshots` (Weekly Progression Trend Data)
+### 3.9 `contribution_snapshots` (Weekly Progression Trend Data)
 Stores point-in-time calculation snapshots powering the **Contribution Trend Line Chart** (e.g., Week 1: 55%, Week 2: 67%, etc.).
 
 | Column | Type | Constraints | Description |
@@ -226,6 +249,9 @@ CREATE INDEX idx_snapshots_trend ON contribution_snapshots(project_id, user_id, 
 ## 5. Row-Level Security (RLS) & Anonymity Policies
 
 Supabase Row-Level Security ensures data is accessible only by authorized team members, while strictly protecting peer review anonymity.
+
+> **Architecture & Access Note:**
+> In the FairShare deployment, user requests pass through the Flask backend (`/api/...`), which validates JWT tokens via `@require_auth` and enforces project membership and data isolation in application logic before executing SQL statements. If the frontend interacts directly with Supabase via `@supabase/supabase-js` (e.g. for storage bucket uploads or direct reads), the RLS policies below enforce identical security boundaries at the database layer using `auth.uid()`.
 
 ### 5.1 Project Access Control
 ```sql
@@ -311,7 +337,7 @@ Initial data setup for the reference prototype:
 ### Members & Scores
 | User | Role | Score Target | Tasks Completed | Evidence Count | Avg Peer Rating |
 |---|---|---|---|---|---|
-| **Abhaas** | Frontend Lead | `82%` | 18 / 20 | 16 | 4.2 / 5.0 |
+| **Abhaas** | Frontend Lead | `82%` | 18 / 20 | 16 | 3.75 / 5.0 |
 | **Rohit** | Backend Developer | `76%` | 15 / 19 | 13 | 4.0 / 5.0 |
 | **Denesh** | Hardware Engineer | `68%` | 11 / 16 | 9 | 3.6 / 5.0 |
 | **Aditya** | Documentation & QA | `61%` | 9 / 15 | 8 | 3.4 / 5.0 |
