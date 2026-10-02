@@ -57,7 +57,7 @@ graph LR
     FLASK --> SCORER
     FLASK <-->|supabase-py / psycopg2| PG
     FLASK <-->|Multipart File Uploads| STORAGE
-    UI -.->|Direct Read Fallback (Optional)| RLS
+    UI -.->|"Direct Read Fallback (Optional)"| RLS
 ```
 
 ### Architectural Principles:
@@ -96,7 +96,7 @@ $$\text{Contribution Score} = \left(S_{\text{completion}} \times 0.30\right) + \
 | Metric | Weight | Mathematical Definition | Explanation & Edge Cases |
 |---|:---:|---|---|
 | **Task Completion** ($S_{\text{completion}}$) | **30%** | $\min\left(100, \frac{\text{Completed Assigned Tasks}}{\max(1, \text{Total Assigned Tasks})} \times 100\right)$ | Proportion of assigned deliverables finalized. Defaults to team baseline if no tasks are assigned yet. |
-| **Timeliness** ($S_{\text{timeliness}}$) | **20%** | $\frac{\text{Tasks where } (\text{completed\_at} \le \text{deadline})}{\max(1, \text{Total Completed Tasks})} \times 100$ | Measures on-time delivery based on server clock timestamps. Tasks marked complete after deadline reduce score. |
+| **Timeliness** ($S_{\text{timeliness}}$) | **20%** | $\frac{\text{Tasks where } (\text{completion} \le \text{deadline})}{\max(1, \text{Total Completed Tasks})} \times 100$ | Measures on-time delivery based on server clock timestamps. Tasks marked complete after deadline reduce score. |
 | **Work Evidence** ($S_{\text{evidence}}$) | **20%** | $\frac{\text{Completed Tasks with } \ge 1 \text{ Evidence Items}}{\max(1, \text{Total Completed Tasks})} \times 100$ | Verifiable accountability. Deliverables without external URLs or attached files receive 0% for this factor. |
 | **Peer Feedback** ($S_{\text{feedback}}$) | **20%** | $\left(\frac{\text{Teammate Average Rating across 6 Dimensions}}{5.0}\right) \times 100$ | Normalized 1–5 teammate feedback. Defaults to 100% during early milestones before feedback windows open. |
 | **Participation** ($S_{\text{participation}}$) | **10%** | $\min\left(100, \frac{\text{Verified User Logged Actions}}{\max(1, \max(\text{Team Avg Actions}, 20))} \times 100\right)$ | Quantifies consistent engagement in the shared activity stream relative to team activity benchmarks. |
