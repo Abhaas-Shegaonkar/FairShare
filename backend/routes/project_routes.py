@@ -1,91 +1,92 @@
 """
 Project and Team Management Routes (`/api/projects`)
 Handles workspace creation, project listings, detail retrieval, and roster invitations.
+Protected by @require_auth.
 """
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, g
 from utils.validators import validate_body, CreateProjectSchema, AddMemberSchema
+from middleware.auth_middleware import require_auth
+from services.project_service import (
+    list_user_projects,
+    create_project,
+    get_project_details,
+    add_project_member,
+)
 
 projects_bp = Blueprint("projects", __name__, url_prefix="/api/projects")
 
 
 @projects_bp.route("", methods=["GET"])
+@require_auth
 def list_projects():
     """
     GET /api/projects
     Lists all active projects the authenticated user belongs to.
     """
+    user_id = g.current_user["id"]
+    projects = list_user_projects(user_id)
     return jsonify({
         "success": True,
-        "data": [],
-        "message": "Projects listing endpoint ready."
+        "data": projects
     }), 200
 
 
 @projects_bp.route("", methods=["POST"])
+@require_auth
 @validate_body(CreateProjectSchema)
-def create_project(validated_data: CreateProjectSchema):
+def create_project_route(validated_data: CreateProjectSchema):
     """
     POST /api/projects
     Creates a new project workspace and dispatches teammate invitations.
     """
+    user_id = g.current_user["id"]
+    user_name = g.current_user.get("name", "Student")
+    payload = validated_data.model_dump()
+
+    result = create_project(creator_user_id=user_id, creator_name=user_name, data=payload)
     return jsonify({
         "success": True,
-        "data": {
-            "project": {
-                "id": "placeholder-project-id",
-                "name": validated_data.name,
-                "description": validated_data.description,
-                "category": validated_data.category,
-                "start_date": validated_data.start_date,
-                "deadline": validated_data.deadline
-            },
-            "members": [],
-            "pending_invites": len(validated_data.members) if validated_data.members else 0
-        },
-        "message": "Project creation endpoint ready."
+        "data": result,
+        "message": f"Project workspace '{result.get('name')}' created successfully."
     }), 201
 
 
 @projects_bp.route("/<project_id>", methods=["GET"])
-def get_project_details(project_id: str):
+@require_auth
+def get_project_workspace_route(project_id: str):
     """
     GET /api/projects/<project_id>
-    Retrieves project workspace metadata, team members, pending invites, and stats.
+    Retrieves project workspace metadata, team roster, pending invites, and stats.
+    Enforces project membership authorization.
     """
+    user_id = g.current_user["id"]
+    details = get_project_details(project_id=project_id, user_id=user_id)
     return jsonify({
         "success": True,
-        "data": {
-            "project": {
-                "id": project_id,
-                "name": "Smart Water Management System",
-                "category": "IoT & Full-Stack",
-                "start_date": "2026-08-01",
-                "deadline": "2026-09-30"
-            },
-            "members": [],
-            "pending_invites": [],
-            "stats": {
-                "total_tasks": 0,
-                "completed_tasks": 0,
-                "progress": "0%"
-            }
-        }
+        "data": details
     }), 200
 
 
 @projects_bp.route("/<project_id>/members", methods=["POST"])
+@require_auth
 @validate_body(AddMemberSchema)
-def add_project_member(project_id: str, validated_data: AddMemberSchema):
+def add_member_route(project_id: str, validated_data: AddMemberSchema):
     """
     POST /api/projects/<project_id>/members
     Adds an existing registered student or creates a pending invitation for a new email.
     """
+    user_id = g.current_user["id"]
+    user_name = g.current_user.get("name", "Student")
+
+    result = add_project_member(
+        project_id=project_id,
+        inviter_user_id=user_id,
+        inviter_name=user_name,
+        email=validated_data.email,
+        role=validated_data.role
+    )
     return jsonify({
         "success": True,
-        "data": {
-            "email": validated_data.email,
-            "role": validated_data.role,
-            "status": "added"
-        },
-        "message": "Project member invitation endpoint ready."
+        "data": result,
+        "message": f"Team member invitation for '{validated_data.email}' processed successfully."
     }), 201
