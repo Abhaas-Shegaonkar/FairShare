@@ -1,0 +1,3 @@
+"""
+FairShare Backend Services Package
+"""
