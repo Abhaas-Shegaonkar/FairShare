@@ -10,6 +10,7 @@ from .error_handler import (
     ValidationError,
     register_error_handlers,
 )
+from .auth_middleware import require_auth, optional_auth
 
 __all__ = [
     "APIError",
@@ -19,4 +20,6 @@ __all__ = [
     "ConflictError",
     "ValidationError",
     "register_error_handlers",
+    "require_auth",
+    "optional_auth",
 ]
