@@ -68,7 +68,7 @@ export function Navbar() {
         </div>
 
         {/* Desktop Navigation Links */}
-        <nav className="hidden md:flex items-center gap-1">
+        <nav className="hidden lg:flex items-center gap-1">
           {navItems.map((item) => {
             const active = isActive(item.path)
             const Icon = item.icon
@@ -97,7 +97,7 @@ export function Navbar() {
         </nav>
 
         {/* Right Section: New Project & User Badge */}
-        <div className="hidden md:flex items-center gap-3">
+        <div className="hidden lg:flex items-center gap-3">
           <Link to="/projects/new">
             <Button variant="cyan" size="sm" icon={PlusCircle}>
               New Project
@@ -147,7 +147,7 @@ export function Navbar() {
         </div>
 
         {/* Mobile Hamburger Button */}
-        <div className="md:hidden flex items-center gap-2">
+        <div className="lg:hidden flex items-center gap-2">
           <button
             type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -167,7 +167,7 @@ export function Navbar() {
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2 }}
-            className="md:hidden border-t border-nexus-border bg-nexus-elevated px-4 py-5 space-y-4"
+            className="lg:hidden border-t border-nexus-border bg-nexus-elevated px-4 py-5 space-y-4"
           >
             {/* User Info on Mobile */}
             {isAuthenticated && (

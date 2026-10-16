@@ -6,6 +6,9 @@ import LoginPage from './pages/LoginPage'
 import SignupPage from './pages/SignupPage'
 import DashboardPage from './pages/DashboardPage'
 import CreateProjectPage from './pages/CreateProjectPage'
+import ProjectWorkspacePage from './pages/ProjectWorkspacePage'
+import ContributionPage from './pages/ContributionPage'
+import FinalReportPage from './pages/FinalReportPage'
 
 export default function App() {
   return (
@@ -17,6 +20,9 @@ export default function App() {
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/projects/new" element={<CreateProjectPage />} />
+          <Route path="/projects/:id" element={<ProjectWorkspacePage />} />
+          <Route path="/projects/:id/contribution" element={<ContributionPage />} />
+          <Route path="/projects/:id/report" element={<FinalReportPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

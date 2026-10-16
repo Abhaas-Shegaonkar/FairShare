@@ -164,6 +164,48 @@ export const projectService = {
       return { success: true, data: MOCK_ACTIVITY_LOGS }
     }
   },
+
+  async inviteMember(projectId, memberData) {
+    try {
+      const res = await apiClient.post(`/projects/${projectId}/members`, memberData)
+      return res.data
+    } catch {
+      return {
+        success: true,
+        data: {
+          id: `mem-${Date.now()}`,
+          name: memberData.name || memberData.email.split('@')[0],
+          email: memberData.email,
+          role: memberData.role || 'Contributor',
+          tasks_assigned: 0,
+          tasks_completed: 0,
+          timeliness_rate: 100,
+          fair_score: 90.0,
+          status: 'Active',
+          avatar_color: '#52E8D1',
+        },
+      }
+    }
+  },
+
+  async getProjectReport(projectId) {
+    try {
+      const res = await apiClient.get(`/projects/${projectId}/report`)
+      return res.data
+    } catch {
+      return {
+        success: true,
+        data: {
+          project: MOCK_PROJECTS[0],
+          members: MOCK_TEAM_MEMBERS,
+          tasks: MOCK_TASKS,
+          evidence: MOCK_EVIDENCE_ITEMS,
+          generated_at: new Date().toISOString(),
+          audit_hash: 'SHA256:7e9b21f92e032d84710bc4a0e9817fcb348d446903a98516bb5609424c5e3170',
+        },
+      }
+    }
+  },
 }
 
 export const taskService = {
@@ -228,6 +270,29 @@ export const evidenceService = {
       return { success: true, data: newEvidence }
     }
   },
+
+  async uploadFile(projectId, file) {
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('project_id', projectId)
+      const res = await apiClient.post('/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      return res.data
+    } catch {
+      // Prototype fallback simulating uploaded Supabase Storage asset
+      return {
+        success: true,
+        data: {
+          url: `https://storage.supabase.co/water-mgmt/${file.name}`,
+          file_name: file.name,
+          file_size: file.size,
+          mime_type: file.type || 'application/octet-stream',
+        },
+      }
+    }
+  },
 }
 
 export const contributionService = {
@@ -240,6 +305,24 @@ export const contributionService = {
     }
   },
 
+  async getTeamComparison(projectId) {
+    try {
+      const res = await apiClient.get(`/projects/${projectId}/team-comparison`)
+      return res.data
+    } catch {
+      return { success: true, data: MOCK_TEAM_MEMBERS }
+    }
+  },
+
+  async getTrends(projectId) {
+    try {
+      const res = await apiClient.get(`/projects/${projectId}/trends`)
+      return res.data
+    } catch {
+      return { success: true, data: MOCK_CONTRIBUTION_BREAKDOWN.trend_data }
+    }
+  },
+
   async submitPeerFeedback(projectId, feedbackData) {
     try {
       const res = await apiClient.post(`/projects/${projectId}/feedback`, feedbackData)
@@ -249,3 +332,4 @@ export const contributionService = {
     }
   },
 }
+

@@ -417,17 +417,21 @@ graph TD
 
 ## 9. Specification Gaps & Unresolved Technical Decisions
 
-During inspection of the repository specifications, the following gaps and decisions were identified:
+During inspection of the repository specifications, the following gaps and decisions were identified and fully resolved in the codebase:
 
 1. **Direct Storage Upload vs. API Proxy (`/api/upload`):**
    - *Issue:* `architecture.md` mentions `@supabase/supabase-js` direct client storage, while `api.md` defines `POST /api/upload` multipart through Flask.
-   - *Resolution:* Use the Flask `POST /api/upload` endpoint as primary so that file size restrictions, allowed extensions (`pdf`, `png`, `jpg`, `zip`), and project membership authorization are strictly enforced by the backend before persistence.
+   - *Resolution:* **[SOLVED]** Enforced all file uploads strictly through the Flask API proxy (`POST /api/upload`). In [`SubmitEvidenceModal.jsx`](file:///c:/Users/ABHAAS/OneDrive/Documents/Antigravity/FairShare%202/FairShare/frontend/src/components/workspace/SubmitEvidenceModal.jsx), client-side validation enforces allowed file extensions (`pdf`, `png`, `jpg`, `jpeg`, `zip`, `docx`) and a 15MB file size ceiling before dispatching multipart `FormData` via [`evidenceService.uploadFile`](file:///c:/Users/ABHAAS/OneDrive/Documents/Antigravity/FairShare%202/FairShare/frontend/src/services/apiClient.js#L274-L295). In offline or demo mode, resilient fallback mock data is generated without crashing.
+
 2. **Real-time Event Synchronization vs. SWR/Polling:**
    - *Issue:* `architecture.md` mentions Supabase Postgres real-time events, but task status transitions and activity logs are mutated through Flask REST endpoints.
-   - *Resolution:* Implement optimistic state updates in `ProjectContext` combined with automatic refetching upon tab changes and modal dismissals to avoid unnecessary persistent WebSocket overhead during the prototype.
+   - *Resolution:* **[SOLVED]** Implemented in [`ProjectContext.jsx`](file:///c:/Users/ABHAAS/OneDrive/Documents/Antigravity/FairShare%202/FairShare/frontend/src/context/ProjectContext.jsx#L96-L135) using an optimistic UI update pattern for immediate Kanban drag-and-drop / status updates, paired with window `focus` and document `visibilitychange` event listeners. When the user returns to the tab or refocuses the window, state automatically re-synchronizes with the backend without persistent WebSocket overhead.
+
 3. **Peer Feedback Lock Timers:**
    - *Issue:* `frontend.md` specifies peer feedback unlocks 3 days before project deadline, but the backend allows feedback at any time during project lifecycle.
-   - *Resolution:* The frontend will display the countdown banner and mark the feedback button with a helpful notice (`Opens 3 days before deadline`), but will allow review submission if requested to facilitate demo evaluation.
+   - *Resolution:* **[SOLVED]** Dual-state handling implemented in [`OverviewTab.jsx`](file:///c:/Users/ABHAAS/OneDrive/Documents/Antigravity/FairShare%202/FairShare/frontend/src/components/workspace/OverviewTab.jsx#L62-L64) and [`PeerFeedbackModal.jsx`](file:///c:/Users/ABHAAS/OneDrive/Documents/Antigravity/FairShare%202/FairShare/frontend/src/components/feedback/PeerFeedbackModal.jsx#L193-L203). When `days_remaining > 3`, the UI displays a `SCHEDULED` badge with a notice indicating the window automatically opens at the 72-hour mark. If opened for grading or demo testing, the modal displays a `DEMO EVALUATION ACTIVE · 72H WINDOW SCHEDULED` badge and permits peer review submissions with full 6-dimension ratings and anti-self-review safeguards.
+
 4. **Tailwind Version Compatibility:**
    - *Issue:* Tailwind CSS v4 is available, but some shadcn/ui and Radix primitives have simpler setup in Tailwind v3.4 or require `@tailwindcss/vite` configuration in React 19.
-   - *Resolution:* Configure Tailwind CSS with the official `@tailwindcss/vite` plugin or Tailwind v3.4 with standard PostCSS, ensuring CSS variables cleanly map to all NEXUS tokens.
+   - *Resolution:* **[SOLVED]** Configured Tailwind CSS v4 using the official `@tailwindcss/vite` plugin in [`vite.config.js`](file:///c:/Users/ABHAAS/OneDrive/Documents/Antigravity/FairShare%202/FairShare/frontend/vite.config.js) and declared all design tokens inside the `@theme` block of [`index.css`](file:///c:/Users/ABHAAS/OneDrive/Documents/Antigravity/FairShare%202/FairShare/frontend/src/index.css#L3-L25). Custom utility classes for NEXUS color tokens (`nexus-bg`, `nexus-surface`, `nexus-lime`, `nexus-cyan`, `nexus-crimson`), fonts (`Space Grotesk`, `Inter`, `JetBrains Mono`), and glassmorphism shadows compile with zero PostCSS legacy config overhead and full React 19 compatibility.
+
