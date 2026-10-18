@@ -74,7 +74,7 @@ graph LR
 |---|---|---|
 | 👥 **Team & Role Setup** | Project workspaces with assigned functional roles (e.g. *Frontend Lead*, *Backend Developer*, *Hardware Engineer*, *QA & Docs*). Auto-maps invitations upon registration. | [`idea.md`](Markdown%20files/idea.md) & [`backend.md`](Markdown%20files/backend.md) |
 | 📋 **Verifiable Task Board** | Kanban and table views (`To Do`, `In Progress`, `Completed`) requiring verifiable proof of work before deliverables are credited. | [`frontend.md`](Markdown%20files/frontend.md) & [`api.md`](Markdown%20files/api.md) |
-| 🗄️ **Work Evidence Vault** | Centralized repository for all attached deliverables: external links (GitHub PRs, Figma boards, Google Docs) and file uploads (PDFs, schematics, screenshots). | [`backend.md`](Markdown%20files/backend.md) & [`database.md`](Markdown%20files/database.md) |
+| 🗄️ **Work Evidence Vault** | Centralized repository for all attached deliverables. Accepted evidence types: `github`, `figma`, `document`, `image`, `url`, `file`, `link`. Supports external URLs and Supabase Storage file uploads. | [`backend.md`](Markdown%20files/backend.md) & [`database.md`](Markdown%20files/database.md) |
 | 📜 **Immutable Activity Stream** | Chronological, audit-ready timeline tracking milestone completions, status updates, and evidence submissions. | [`database.md`](Markdown%20files/database.md) |
 | 🤝 **6-Dimension Peer Review** | Anonymous evaluations rated 1 to 5 across: *Participation*, *Responsibility*, *Quality of Work*, *Collaboration*, *Communication*, and *Timeliness*. | [`idea.md`](Markdown%20files/idea.md) & [`api.md`](Markdown%20files/api.md) |
 | 🧮 **Explainable 5-Factor Scoring** | Mathematical contribution index calculated with 100% visibility via the *"Why did I get this score?"* breakdown modal. | [`backend.md`](Markdown%20files/backend.md) |
@@ -106,15 +106,15 @@ When a student clicks their score on the dashboard, the backend delivers the com
 
 ```json
 {
-  "user_id": "u1",
+  "user_id": "c3d69cb4-9fae-4f0e-9494-0f1e67e3dfd0",
   "name": "Abhaas",
   "overall_score": 82,
   "breakdown": {
-    "task_completion": { "score": 90.0, "weight": 30, "points": 27.0, "details": "Completed 18 out of 20 assigned tasks." },
-    "timeliness": { "score": 85.0, "weight": 20, "points": 17.0, "details": "17 out of 20 tasks submitted on or before deadline." },
-    "work_evidence": { "score": 80.0, "weight": 20, "points": 16.0, "details": "16 tasks backed by verified links or repository files." },
-    "peer_feedback": { "score": 75.0, "weight": 20, "points": 15.0, "details": "Average 3.75 / 5.0 across 3 teammate evaluations." },
-    "participation": { "score": 70.0, "weight": 10, "points": 7.0, "details": "Logged 21 verified project actions against team benchmark." }
+    "task_completion": { "weight": "30%", "score": 90.0, "weighted_contribution": 27.0, "explanation": "Completed 18 out of 20 assigned tasks." },
+    "timeliness":     { "weight": "20%", "score": 85.0, "weighted_contribution": 17.0, "explanation": "17 out of 20 tasks submitted on or before server deadline." },
+    "work_evidence":  { "weight": "20%", "score": 80.0, "weighted_contribution": 16.0, "explanation": "16 tasks backed by verified links or repository files." },
+    "peer_feedback":  { "weight": "20%", "score": 75.0, "weighted_contribution": 15.0, "explanation": "Average 3.75 / 5.0 across 6 dimensions from 3 teammate evaluations." },
+    "participation":  { "weight": "10%", "score": 70.0, "weighted_contribution":  7.0, "explanation": "Logged 21 verified project actions against team benchmark of 20." }
   }
 }
 ```
@@ -183,13 +183,15 @@ All endpoints use JSON payloads and adhere to standard response envelopes. Detai
 | **Evidence** | `POST` | `/api/upload` | Bearer | Multipart upload to Supabase Storage bucket |
 | | `POST` | `/api/tasks/<id>/evidence` | Bearer | Attach deliverable URL or uploaded file |
 | | `GET` | `/api/projects/<id>/evidence` | Bearer | Retrieve all verified artifacts for project vault |
-| **Feedback** | `POST` | `/api/projects/<id>/feedback` | Bearer | Submit anonymous 6-factor review (blocks self-review) |
-| | `GET` | `/api/projects/<id>/feedback/status` | Bearer | Check which teammates active user has evaluated |
-| | `GET` | `/api/projects/<id>/feedback/summary` | Bearer | Get anonymized, aggregated peer scores |
+| **Feedback** | `POST` | `/api/projects/<id>/feedback` | Bearer | Submit anonymous 6-dimension review (blocks self-review, triggers score recompute) |
+| | `GET` | `/api/projects/<id>/feedback/status` | Bearer | List teammate IDs the active user has already evaluated |
+| | `GET` | `/api/projects/<id>/feedback/summary?user_id=` | Bearer | Anonymized aggregated ratings from `v_peer_feedback_summary` view |
 | **Analytics** | `GET` | `/api/projects/<id>/contribution/<uid>` | Bearer | Fetch 5-factor explainable score breakdown |
-| | `GET` | `/api/projects/<id>/team-comparison` | Bearer | Retrieve relative scores across all members |
-| | `GET` | `/api/projects/<id>/trends` | Bearer | Weekly score progression for time-series charts |
-| | `GET` | `/api/projects/<id>/report` | Bearer | Compile comprehensive final audit summary |
+| | `GET` | `/api/projects/<id>/team-comparison` | Bearer | Retrieve relative contribution scores for all members |
+| | `GET` | `/api/projects/<id>/trends` | Bearer | Weekly snapshot progression for Recharts time-series |
+| | `POST` | `/api/projects/<id>/snapshots/generate` | Bearer | Manually trigger re-computation of weekly score snapshots |
+| | `GET` | `/api/projects/<id>/report` | Bearer | Compile comprehensive final audit report with SHA-256 hash |
+| **Utilities** | `GET` | `/api/deadlines` | Bearer | Upcoming task deadlines across all user projects (filter: `?days=N`) |
 
 ---
 
@@ -239,11 +241,12 @@ The FairShare frontend adheres to the **Stitch UI** design specification—craft
 To prevent score inflation, artificial activity spamming, or retaliation:
 
 1. **Server Clock Authority:** Due dates, task completions, and log entries rely on PostgreSQL server time (`now()`), nullifying client clock spoofing.
-2. **Strict Self-Review Prohibition:** Database-enforced check constraints prevent users from submitting evaluations for themselves.
-3. **No Unverified Deliverables:** Marking a task as complete without attached evidence generates an amber `Evidence Missing` warning and assigns a 0% evidence rating for that task.
+2. **Strict Self-Review Prohibition:** Database-enforced `CHECK (reviewer_id <> reviewee_id)` constraint and a server-side guard in `feedback_service.py` both independently block self-evaluations (defense-in-depth).
+3. **No Unverified Deliverables:** Marking a task as complete without attached evidence assigns a 0% evidence rating for that task, surfaced as an amber warning on the UI.
 4. **Permanent Audit Trail:** Task assignments, status transitions, and file uploads are immutably preserved in `activity_logs`.
-5. **Sanitized Outlier Moderation:** Peer evaluation averages are trimmed to prevent retaliatory low ratings or collusion.
-6. **Defense-in-Depth Middleware:** JWT bearer tokens are strictly validated via `@require_auth` with project membership validation on every sensitive API request.
+5. **Defense-in-Depth Middleware:** JWT bearer tokens are strictly validated via `@require_auth` with project membership validation (`require_project_membership`) on every sensitive API request.
+6. **Score Recomputation on Feedback:** Submitting a peer review immediately triggers a re-computation of the reviewee's contribution score via `calculate_member_contribution()`, keeping displayed scores current.
+7. **Audit Hash:** Final report responses include a `SHA-256` hash of the `project_id + timestamp` for tamper-evidence verification.
 
 ---
 
@@ -299,9 +302,18 @@ FairShare/
 │   ├── requirements.txt               # Locked Python dependencies
 │   ├── .env.example                   # Safe environment template
 │   ├── routes/                        # Blueprints (auth, projects, tasks, evidence, feedback, analytics)
-│   ├── services/                      # Business logic (scoring_engine, activity_logger, report_service)
-│   ├── middleware/                    # @require_auth JWT validator & error handlers
-│   └── utils/                         # Input validators & seed_data.py reference script
+│   ├── services/                      # Business logic layer:
+│   │   ├── scoring_engine.py          # 5-factor contribution calculator + snapshot generator
+│   │   ├── feedback_service.py        # Peer review submission, status, anonymized summaries
+│   │   ├── activity_logger.py         # Append-only action logging helpers
+│   │   ├── auth_service.py            # JWT generation/validation, bcrypt, invite claiming
+│   │   ├── project_service.py         # Workspace creation, membership enforcement
+│   │   ├── task_service.py            # Task CRUD, timeliness, server-clock timestamps
+│   │   ├── evidence_service.py        # Supabase Storage uploads, evidence vault queries
+│   │   └── supabase_service.py        # Supabase client initialization
+│   ├── middleware/                    # @require_auth JWT validator & JSON error handlers
+│   ├── utils/                         # Input validators, seed_data.py, generate_snapshots.py
+│   └── wsgi.py                        # Production WSGI entry point (Gunicorn)
 │
 └── Markdown files/                    # Detailed technical specifications
     ├── idea.md                        # Conceptualization, UX philosophy, and anti-gaming
