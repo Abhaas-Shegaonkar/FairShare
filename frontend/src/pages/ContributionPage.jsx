@@ -110,12 +110,13 @@ export default function ContributionPage() {
         const initialMember =
           currentMembers.find((m) => m.email === user?.email || m.name === user?.name) ||
           currentMembers[0]
-        setSelectedMemberId(initialMember?.id || initialMember?.name)
+        const initialMemberId = initialMember?.id || initialMember?.user_id || initialMember?.name
+        setSelectedMemberId(initialMemberId)
 
         // Load contribution breakdown for member
         const contribRes = await contributionService.getContributionScore(
           projectId,
-          initialMember?.id || 'default'
+          initialMember?.id || initialMember?.user_id || 'default'
         )
         setContributionData(contribRes.data || MOCK_CONTRIBUTION_BREAKDOWN)
       } catch (err) {
@@ -133,11 +134,26 @@ export default function ContributionPage() {
   }, [routeProjectId, user])
 
   // Handle member tab switch
-  const handleSelectMember = (member) => {
-    setSelectedMemberId(member.id || member.name)
+  const handleSelectMember = async (member) => {
+    const memberId = member.id || member.user_id || member.name
+    setSelectedMemberId(memberId)
 
-    // Calculate or adjust member-specific scores dynamically
-    const memberScore = member.fair_score || 90.0
+    const projectId = routeProjectId || project?.id || 'a1b2c3d4-0000-0000-0000-000000000001'
+    const targetUserId = member.id || member.user_id
+    if (targetUserId) {
+      try {
+        const res = await contributionService.getContributionScore(projectId, targetUserId)
+        if (res && res.data && res.data.factors) {
+          setContributionData(res.data)
+          return
+        }
+      } catch (err) {
+        console.warn('Failed to fetch contribution score for selected member, using proportional fallback:', err)
+      }
+    }
+
+    // Fallback: Calculate or adjust member-specific scores dynamically
+    const memberScore = member.fair_score ?? member.overall_score ?? member.score ?? 90.0
     const ratio = memberScore / 94.2
 
     const memberFactors = MOCK_CONTRIBUTION_BREAKDOWN.factors.map((f) => ({
@@ -161,7 +177,12 @@ export default function ContributionPage() {
   }
 
   const activeMember =
-    members.find((m) => m.id === selectedMemberId || m.name === selectedMemberId) ||
+    members.find(
+      (m) =>
+        (m.id && m.id === selectedMemberId) ||
+        (m.user_id && m.user_id === selectedMemberId) ||
+        m.name === selectedMemberId
+    ) ||
     members[0] ||
     MOCK_TEAM_MEMBERS[0]
 
@@ -282,11 +303,17 @@ export default function ContributionPage() {
 
             <div className="flex flex-wrap gap-2">
               {members.map((member) => {
+                const memberKey = member.id || member.user_id || member.name
                 const isSelected =
-                  selectedMemberId === member.id || selectedMemberId === member.name
+                  selectedMemberId === memberKey ||
+                  selectedMemberId === member.id ||
+                  selectedMemberId === member.user_id ||
+                  selectedMemberId === member.name
+                const displayScore =
+                  member.fair_score ?? member.overall_score ?? member.score ?? 85
                 return (
                   <button
-                    key={member.id || member.name}
+                    key={memberKey}
                     type="button"
                     onClick={() => handleSelectMember(member)}
                     className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-mono transition-all cursor-pointer ${
@@ -300,7 +327,7 @@ export default function ContributionPage() {
                       style={{ backgroundColor: member.avatar_color || '#C5FF4A' }}
                     />
                     <span className="font-bold">{member.name}</span>
-                    <span className="opacity-70 text-[10px]">({member.fair_score || 85}%)</span>
+                    <span className="opacity-70 text-[10px]">({displayScore}%)</span>
                   </button>
                 )
               })}
@@ -339,8 +366,11 @@ export default function ContributionPage() {
           {/* DELIVERABLES FINALIZED */}
           <MetricCard
             title="Deliverables Finalized"
-            value={`${activeMember.tasks_completed || 6} Tasks`}
-            subtitle={`${completionPercentage}% team-wide completion velocity`}
+            value={
+              contributionData?.breakdown?.task_completion?.label ||
+              `${activeMember.tasks_completed || 6} Tasks`
+            }
+            subtitle={`${activeMember.tasks_completed || completedTasksCount} completed (${completionPercentage}% team velocity)`}
             icon={CheckCircle2}
             trend="+100%"
             trendPositive={true}
@@ -350,8 +380,15 @@ export default function ContributionPage() {
           {/* ON-TIME DELIVERY RATE */}
           <MetricCard
             title="On-Time Delivery Rate"
-            value={`${activeMember.timeliness_rate || 96}%`}
-            subtitle="Completed on or before deadline timestamps"
+            value={
+              contributionData?.breakdown?.timeliness?.score !== undefined
+                ? `${Math.round(contributionData.breakdown.timeliness.score)}%`
+                : `${activeMember.timeliness_rate || 96}%`
+            }
+            subtitle={
+              contributionData?.breakdown?.timeliness?.label ||
+              "Completed on or before deadline timestamps"
+            }
             icon={Clock}
             trend="Strict"
             trendPositive={true}
@@ -361,8 +398,17 @@ export default function ContributionPage() {
           {/* VERIFIED EVIDENCE ARTIFACTS */}
           <MetricCard
             title="Verified Evidence Vault"
-            value={`${totalEvidenceCount} Artifacts`}
-            subtitle="GitHub PRs, Figma links & technical PDFs"
+            value={
+              activeMember.evidence_count !== undefined
+                ? `${activeMember.evidence_count} Artifacts`
+                : contributionData?.breakdown?.work_evidence?.points !== undefined
+                ? `${contributionData.breakdown.work_evidence.points} Points`
+                : `${totalEvidenceCount} Artifacts`
+            }
+            subtitle={
+              contributionData?.breakdown?.work_evidence?.label ||
+              "GitHub PRs, Figma links & technical PDFs"
+            }
             icon={ShieldCheck}
             trend="Verified"
             trendPositive={true}
@@ -372,8 +418,21 @@ export default function ContributionPage() {
           {/* TEAMMATE EVALUATION */}
           <MetricCard
             title="Peer Evaluation Avg"
-            value="4.8 / 5.0"
-            subtitle="Anonymous 6-dimension teammate rating"
+            value={
+              contributionData?.breakdown?.peer_feedback?.label
+                ? contributionData.breakdown.peer_feedback.label.includes('/')
+                  ? `${contributionData.breakdown.peer_feedback.label.split(' ')[0]} / 5.0`
+                  : contributionData.breakdown.peer_feedback.label
+                : activeMember.peer_score
+                ? `${activeMember.peer_score} / 5.0`
+                : activeMember.rating
+                ? `${activeMember.rating} / 5.0`
+                : "4.8 / 5.0"
+            }
+            subtitle={
+              contributionData?.breakdown?.peer_feedback?.details ||
+              "Anonymous 6-dimension teammate rating"
+            }
             icon={Users}
             trend="Exemplary"
             trendPositive={true}

@@ -45,6 +45,7 @@ function WorkspaceInner() {
     addEvidence,
     uploadFile,
     inviteMember,
+    refreshProject,
   } = useProject()
 
   // Modal states
@@ -316,6 +317,9 @@ function WorkspaceInner() {
         onClose={() => setIsPeerFeedbackModalOpen(false)}
         project={project}
         members={project?.members || []}
+        onFeedbackSubmitted={() => {
+          refreshProject?.()
+        }}
       />
 
       {/* FOOTER */}

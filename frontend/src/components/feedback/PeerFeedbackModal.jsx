@@ -123,13 +123,20 @@ export function PeerFeedbackModal({
       const payload = {
         reviewer_id: currentUserId,
         reviewee_id: activeReviewee.id || activeReviewee.name,
+        participation_score: ratings.participation,
+        responsibility_score: ratings.responsibility,
+        quality_score: ratings.quality,
+        collaboration_score: ratings.collaboration,
+        communication_score: ratings.communication,
+        timeliness_score: ratings.timeliness,
+        comments: comments.trim(),
         ratings,
         feedback: comments.trim(),
         submitted_at: new Date().toISOString(),
       }
 
       await contributionService.submitPeerFeedback(
-        project?.id || 'a1b2c3d4-0000-0000-0000-000000000001',
+        project?.id || 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d',
         payload
       )
 
@@ -143,7 +150,11 @@ export function PeerFeedbackModal({
       }, 1800)
     } catch (err) {
       console.error('Peer feedback submission failed:', err)
-      setErrorMessage('Submission encountered an error. Please try again.')
+      const serverMsg =
+        err.response?.data?.error?.message ||
+        err.response?.data?.message ||
+        'Submission encountered an error. Please try again.'
+      setErrorMessage(serverMsg)
     } finally {
       setIsSubmitting(false)
     }

@@ -45,7 +45,7 @@ export function TeamComparisonChart({ members = [] }) {
   // Prepare chart dataset
   const chartData = members.map((m) => ({
     name: m.name,
-    fair_score: m.fair_score || 85,
+    fair_score: m.fair_score ?? m.score ?? 85,
     timeliness_rate: m.timeliness_rate || 80,
     tasks_completed: m.tasks_completed || 0,
     tasks_assigned: m.tasks_assigned || 0,
