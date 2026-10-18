@@ -3,6 +3,7 @@ Project and Team Management Routes (`/api/projects`)
 Handles workspace creation, project listings, detail retrieval, and roster invitations.
 Protected by @require_auth.
 """
+
 from flask import Blueprint, jsonify, g
 from utils.validators import validate_body, CreateProjectSchema, AddMemberSchema
 from middleware.auth_middleware import require_auth
@@ -25,10 +26,7 @@ def list_projects():
     """
     user_id = g.current_user["id"]
     projects = list_user_projects(user_id)
-    return jsonify({
-        "success": True,
-        "data": projects
-    }), 200
+    return jsonify({"success": True, "data": projects}), 200
 
 
 @projects_bp.route("", methods=["POST"])
@@ -44,11 +42,16 @@ def create_project_route(validated_data: CreateProjectSchema):
     payload = validated_data.model_dump()
 
     result = create_project(creator_user_id=user_id, creator_name=user_name, data=payload)
-    return jsonify({
-        "success": True,
-        "data": result,
-        "message": f"Project workspace '{result.get('name')}' created successfully."
-    }), 201
+    return (
+        jsonify(
+            {
+                "success": True,
+                "data": result,
+                "message": f"Project workspace '{result.get('name')}' created successfully.",
+            }
+        ),
+        201,
+    )
 
 
 @projects_bp.route("/<project_id>", methods=["GET"])
@@ -61,10 +64,19 @@ def get_project_workspace_route(project_id: str):
     """
     user_id = g.current_user["id"]
     details = get_project_details(project_id=project_id, user_id=user_id)
-    return jsonify({
-        "success": True,
-        "data": details
-    }), 200
+    return jsonify({"success": True, "data": details}), 200
+
+
+@projects_bp.route("/<project_id>/members", methods=["GET"])
+@require_auth
+def get_project_members_route(project_id: str):
+    """
+    GET /api/projects/<project_id>/members
+    Retrieves the team member roster for a project.
+    """
+    user_id = g.current_user["id"]
+    details = get_project_details(project_id=project_id, user_id=user_id)
+    return jsonify({"success": True, "data": details.get("members", [])}), 200
 
 
 @projects_bp.route("/<project_id>/members", methods=["POST"])
@@ -83,10 +95,15 @@ def add_member_route(project_id: str, validated_data: AddMemberSchema):
         inviter_user_id=user_id,
         inviter_name=user_name,
         email=validated_data.email,
-        role=validated_data.role
+        role=validated_data.role,
     )
-    return jsonify({
-        "success": True,
-        "data": result,
-        "message": f"Team member invitation for '{validated_data.email}' processed successfully."
-    }), 201
+    return (
+        jsonify(
+            {
+                "success": True,
+                "data": result,
+                "message": f"Team member invitation for '{validated_data.email}' processed successfully.",
+            }
+        ),
+        201,
+    )
