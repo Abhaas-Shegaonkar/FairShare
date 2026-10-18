@@ -5,7 +5,6 @@ a reusable Flask decorator for centralized input validation and sanitization.
 """
 from functools import wraps
 from typing import Any, List, Literal, Optional
-from datetime import date
 from flask import request, jsonify
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -18,7 +17,7 @@ def validate_body(schema_cls):
     """
     Decorator for Flask route handlers. Validates incoming JSON request payload
     against the provided Pydantic model.
-    
+
     If valid:
       Passes the parsed Pydantic model instance as `validated_data` to the route.
     If invalid:
@@ -194,10 +193,7 @@ class UpdateTaskStatusSchema(BaseModel):
 class AttachEvidenceSchema(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
-    type: Literal["link", "file", "github", "github_pr", "figma", "document"] = Field(
-        ...,
-        description="Evidence subtype: 'github'/'github_pr' for PRs, 'figma' for design boards, 'document' for PDFs/docs, 'link' for general URLs, 'file' for uploaded storage artifacts"
-    )
+    type: Literal["github", "figma", "document", "image", "url", "file", "link"] = Field(..., description="Evidence type")
     title: str = Field(..., min_length=1, max_length=255)
     url: str = Field(..., min_length=3, max_length=2048)
     notes: Optional[str] = Field(default="", max_length=1000)
@@ -218,3 +214,27 @@ class SubmitFeedbackSchema(BaseModel):
     communication_score: int = Field(..., ge=1, le=5, description="1 to 5 rating scale")
     timeliness_score: int = Field(..., ge=1, le=5, description="1 to 5 rating scale")
     comments: Optional[str] = Field(default="", max_length=2000)
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_ratings_and_comments(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            # Check nested ratings dict
+            ratings = data.get("ratings")
+            if isinstance(ratings, dict):
+                for dim in [
+                    "participation",
+                    "responsibility",
+                    "quality",
+                    "collaboration",
+                    "communication",
+                    "timeliness",
+                ]:
+                    score_key = f"{dim}_score"
+                    if score_key not in data or data[score_key] is None:
+                        if dim in ratings:
+                            data[score_key] = ratings[dim]
+            # Check feedback alias for comments
+            if ("comments" not in data or not data["comments"]) and "feedback" in data:
+                data["comments"] = data.get("feedback") or ""
+        return data
