@@ -3,6 +3,7 @@ Project & Task Management Unit Tests
 Validates project workspace creation, roster management, task board queries,
 status transitions, and @require_auth authorization enforcement.
 """
+
 import unittest
 from app import create_app
 from config import TestingConfig
@@ -18,9 +19,7 @@ class ProjectTaskTestCase(unittest.TestCase):
         self.user_email = "lead@college.edu"
         self.user_name = "Team Lead"
         self.token = generate_jwt_token(self.user_id, self.user_email, self.user_name)
-        self.auth_headers = {
-            "Authorization": f"Bearer {self.token}"
-        }
+        self.auth_headers = {"Authorization": f"Bearer {self.token}"}
 
     def test_list_projects_unauthorized(self):
         """GET /api/projects without token returns 401."""
@@ -39,12 +38,16 @@ class ProjectTaskTestCase(unittest.TestCase):
 
     def test_create_project_invalid_dates(self):
         """POST /api/projects rejects deadline earlier than start_date."""
-        response = self.client.post("/api/projects", headers=self.auth_headers, json={
-            "name": "Invalid Date Project",
-            "category": "Academic",
-            "start_date": "2026-09-30",
-            "deadline": "2026-08-01"
-        })
+        response = self.client.post(
+            "/api/projects",
+            headers=self.auth_headers,
+            json={
+                "name": "Invalid Date Project",
+                "category": "Academic",
+                "start_date": "2026-09-30",
+                "deadline": "2026-08-01",
+            },
+        )
         self.assertEqual(response.status_code, 400)
         data = response.get_json()
         self.assertFalse(data["success"])
@@ -52,17 +55,21 @@ class ProjectTaskTestCase(unittest.TestCase):
 
     def test_create_project_success(self):
         """POST /api/projects creates workspace and queues invites."""
-        response = self.client.post("/api/projects", headers=self.auth_headers, json={
-            "name": "Autonomous Drone Navigation",
-            "description": "Vision-based drone tracking.",
-            "category": "Robotics",
-            "start_date": "2026-08-01",
-            "deadline": "2026-10-31",
-            "members": [
-                {"email": "peer1@college.edu", "role": "CV Engineer"},
-                {"email": "peer2@college.edu", "role": "Flight Dynamics"}
-            ]
-        })
+        response = self.client.post(
+            "/api/projects",
+            headers=self.auth_headers,
+            json={
+                "name": "Autonomous Drone Navigation",
+                "description": "Vision-based drone tracking.",
+                "category": "Robotics",
+                "start_date": "2026-08-01",
+                "deadline": "2026-10-31",
+                "members": [
+                    {"email": "peer1@college.edu", "role": "CV Engineer"},
+                    {"email": "peer2@college.edu", "role": "Flight Dynamics"},
+                ],
+            },
+        )
         self.assertEqual(response.status_code, 201)
         data = response.get_json()
         self.assertTrue(data["success"])
@@ -81,10 +88,11 @@ class ProjectTaskTestCase(unittest.TestCase):
     def test_add_project_member(self):
         """POST /api/projects/<id>/members adds or invites team member."""
         project_id = "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d"
-        response = self.client.post(f"/api/projects/{project_id}/members", headers=self.auth_headers, json={
-            "email": "new_member@college.edu",
-            "role": "QA Specialist"
-        })
+        response = self.client.post(
+            f"/api/projects/{project_id}/members",
+            headers=self.auth_headers,
+            json={"email": "new_member@college.edu", "role": "QA Specialist"},
+        )
         self.assertEqual(response.status_code, 201)
         data = response.get_json()
         self.assertTrue(data["success"])
@@ -102,10 +110,11 @@ class ProjectTaskTestCase(unittest.TestCase):
     def test_create_task_validation_error(self):
         """POST /api/projects/<id>/tasks rejects payloads missing required title."""
         project_id = "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d"
-        response = self.client.post(f"/api/projects/{project_id}/tasks", headers=self.auth_headers, json={
-            "description": "Missing title",
-            "priority": "High"
-        })
+        response = self.client.post(
+            f"/api/projects/{project_id}/tasks",
+            headers=self.auth_headers,
+            json={"description": "Missing title", "priority": "High"},
+        )
         self.assertEqual(response.status_code, 400)
         data = response.get_json()
         self.assertEqual(data["error"]["code"], "VALIDATION_ERROR")
@@ -113,12 +122,16 @@ class ProjectTaskTestCase(unittest.TestCase):
     def test_create_task_success(self):
         """POST /api/projects/<id>/tasks creates deliverable."""
         project_id = "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d"
-        response = self.client.post(f"/api/projects/{project_id}/tasks", headers=self.auth_headers, json={
-            "title": "Calibrate Sonar Sensors",
-            "description": "Hardware testing with breadboard.",
-            "deadline": "2026-09-15T18:00:00Z",
-            "priority": "High"
-        })
+        response = self.client.post(
+            f"/api/projects/{project_id}/tasks",
+            headers=self.auth_headers,
+            json={
+                "title": "Calibrate Sonar Sensors",
+                "description": "Hardware testing with breadboard.",
+                "deadline": "2026-09-15T18:00:00Z",
+                "priority": "High",
+            },
+        )
         self.assertEqual(response.status_code, 201)
         data = response.get_json()
         self.assertTrue(data["success"])
@@ -127,15 +140,21 @@ class ProjectTaskTestCase(unittest.TestCase):
     def test_update_task_status_completed(self):
         """PATCH /api/tasks/<id>/status records completed_at server timestamp."""
         task_id = "10000000-0000-0000-0000-000000000001"
-        response = self.client.patch(f"/api/tasks/{task_id}/status", headers=self.auth_headers, json={
-            "status": "Completed"
-        })
+        response = self.client.patch(
+            f"/api/tasks/{task_id}/status", headers=self.auth_headers, json={"status": "Completed"}
+        )
         self.assertEqual(response.status_code, 200)
         data = response.get_json()
         self.assertTrue(data["success"])
         self.assertEqual(data["data"]["status"], "Completed")
         self.assertIsNotNone(data["data"]["completed_at"])
         self.assertIsNotNone(data["data"]["completed_by"])
+
+    def test_seed_dataset_benchmarks(self):
+        """Verifies utils.seed_data benchmarks match target 4-student prototype scores."""
+        from utils.seed_data import verify_seed_dataset
+
+        self.assertTrue(verify_seed_dataset())
 
 
 if __name__ == "__main__":

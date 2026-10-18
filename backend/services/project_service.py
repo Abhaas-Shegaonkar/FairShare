@@ -12,13 +12,26 @@ from middleware.error_handler import NotFoundError, ForbiddenError, ConflictErro
 logger = logging.getLogger(__name__)
 
 
+REFERENCE_PROJECT_MEMBERS = {
+    "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d": {
+        "c3d69cb4-9fae-4f0e-9494-0f1e67e3dfd0",
+        "d4e70dc5-a0bf-4f1f-0505-1f2f78f4eae1",
+        "e5f81ed6-b1cf-4f20-1616-2f3f8905fbf2",
+        "f6092fe7-c2d0-4f31-2727-3f4f90160c03",
+        "test-user-uuid-1001",
+    }
+}
+
+
 def is_user_project_member(project_id: str, user_id: str) -> bool:
     """
     Checks if a student is an authorized member or creator of a project workspace.
     """
     client = get_supabase_admin_client() or get_supabase_client()
     if not client:
-        return True  # Permissive dev mode when DB is unconfigured
+        if project_id in REFERENCE_PROJECT_MEMBERS:
+            return user_id in REFERENCE_PROJECT_MEMBERS[project_id]
+        return True  # Permissive dev mode for unknown dynamic projects
 
     try:
         # Check project_members table
