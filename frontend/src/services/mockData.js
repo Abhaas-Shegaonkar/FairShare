@@ -1,15 +1,18 @@
 /**
  * FairShare Prototype Mock Datasets
  * High-fidelity datasets matching the API specifications in api.md & database.md.
+ *
+ * IMPORTANT: UUIDs, scores, project IDs, status values, evidence types, and week
+ * labels in this file are kept in sync with backend stub data and the README spec.
  */
 
+// ─── Canonical UUIDs (must match backend stubs in project_service.py & analytics_routes.py) ───
 export const MOCK_USER = {
   id: "c3d69cb4-9fae-4f0e-9494-0f1e67e3dfd0",
   email: "abhaas@college.edu",
   name: "Abhaas",
-  college: "MIT Institute of Technology",
   avatar_url: null,
-  role: "Team Lead & Frontend",
+  role: "Frontend Lead",
 }
 
 export const MOCK_TEAM_MEMBERS = [
@@ -18,61 +21,62 @@ export const MOCK_TEAM_MEMBERS = [
     name: "Abhaas",
     email: "abhaas@college.edu",
     role: "Frontend Lead",
-    tasks_assigned: 6,
-    tasks_completed: 6,
-    timeliness_rate: 98,
-    fair_score: 94.2,
+    tasks_assigned: 20,
+    tasks_completed: 18,
+    timeliness_rate: 85,
+    fair_score: 82,
     avatar_color: "#C5FF4A",
   },
   {
-    id: "d4e70dc5-0abf-5a1f-0505-1a2f78f4ea01",
+    id: "d4e70dc5-a0bf-4f1f-0505-1f2f78f4eae1",
     name: "Rohit",
     email: "rohit@college.edu",
-    role: "Backend Architect",
-    tasks_assigned: 5,
-    tasks_completed: 5,
-    timeliness_rate: 92,
-    fair_score: 91.5,
+    role: "Backend Developer",
+    tasks_assigned: 19,
+    tasks_completed: 15,
+    timeliness_rate: 80,
+    fair_score: 76,
     avatar_color: "#52E8D1",
   },
   {
-    id: "e5f81ed6-1bc0-6b2a-1616-2b3a89a5fb12",
+    id: "e5f81ed6-b1cf-4f20-1616-2f3f8905fbf2",
     name: "Denesh",
     email: "denesh@college.edu",
-    role: "IoT & Hardware Lead",
-    tasks_assigned: 5,
-    tasks_completed: 4,
-    timeliness_rate: 84,
-    fair_score: 83.0,
+    role: "Hardware Engineer",
+    tasks_assigned: 16,
+    tasks_completed: 11,
+    timeliness_rate: 72,
+    fair_score: 68,
     avatar_color: "#F59E0B",
   },
   {
-    id: "f6a92fe7-2cd1-7c3b-2727-3c4b90b6ac23",
+    id: "f6092fe7-c2d0-4f31-2727-3f4f90160c03",
     name: "Aditya",
     email: "aditya@college.edu",
-    role: "QA & Documentation",
-    tasks_assigned: 4,
-    tasks_completed: 3,
-    timeliness_rate: 76,
-    fair_score: 72.8,
+    role: "Documentation & QA",
+    tasks_assigned: 15,
+    tasks_completed: 9,
+    timeliness_rate: 65,
+    fair_score: 61,
     avatar_color: "#FF4D4D",
   },
 ]
 
+// ─── Project ID must match project_service.py fallback ───
 export const MOCK_PROJECTS = [
   {
-    id: "a1b2c3d4-0000-0000-0000-000000000001",
+    id: "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
     name: "Smart Water Management System",
     description: "IoT-based sensor network for water distribution tracking, pressure anomaly detection, and academic capstone demonstration.",
     category: "IoT & Full-Stack",
     start_date: "2026-08-01",
-    deadline: "2026-10-30",
+    deadline: "2026-09-30",
     my_role: "Frontend Lead",
     total_tasks: 20,
     completed_tasks: 18,
     progress_percentage: 90.0,
     members_count: 4,
-    fairness_score: 92.4,
+    fairness_score: 82,
     status: "Active",
     days_remaining: 14,
   },
@@ -88,7 +92,7 @@ export const MOCK_PROJECTS = [
     completed_tasks: 8,
     progress_percentage: 50.0,
     members_count: 5,
-    fairness_score: 84.1,
+    fairness_score: 84,
     status: "Active",
     days_remaining: 35,
   },
@@ -104,26 +108,28 @@ export const MOCK_PROJECTS = [
     completed_tasks: 24,
     progress_percentage: 100.0,
     members_count: 4,
-    fairness_score: 96.5,
+    fairness_score: 97,
     status: "Completed",
     days_remaining: 0,
   },
 ]
 
+// ─── Task status values MUST use "To Do" (with space) matching validators.py ───
 export const MOCK_TASKS = [
   {
     id: "task-001",
-    project_id: "a1b2c3d4-0000-0000-0000-000000000001",
+    project_id: "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
     title: "Implement Real-Time Flow Rate Telemetry Dashboard",
-    description: "Build reactive WebSocket chart interface for pipe flow rates using Recharts and Tailwind.",
+    description: "Build reactive WebSocket chart interface for pipe flow rates using Recharts.",
     status: "Completed",
     priority: "High",
-    complexity: "Complex",
     assigned_to: "Abhaas",
     assigned_user_id: "c3d69cb4-9fae-4f0e-9494-0f1e67e3dfd0",
-    due_date: "2026-09-15",
+    deadline: "2026-09-15T18:00:00Z",
     completed_at: "2026-09-14T18:30:00Z",
+    is_on_time: true,
     evidence_count: 2,
+    has_evidence: true,
     evidence: [
       {
         id: "ev-01",
@@ -136,17 +142,18 @@ export const MOCK_TASKS = [
   },
   {
     id: "task-002",
-    project_id: "a1b2c3d4-0000-0000-0000-000000000001",
+    project_id: "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
     title: "Sensor Anomaly Notification API",
     description: "Flask REST endpoint and alerting webhooks for abnormal pressure drops.",
     status: "Completed",
     priority: "Critical",
-    complexity: "Complex",
     assigned_to: "Rohit",
-    assigned_user_id: "d4e70dc5-0abf-5a1f-0505-1a2f78f4ea01",
-    due_date: "2026-09-18",
+    assigned_user_id: "d4e70dc5-a0bf-4f1f-0505-1f2f78f4eae1",
+    deadline: "2026-09-18T18:00:00Z",
     completed_at: "2026-09-17T22:10:00Z",
+    is_on_time: true,
     evidence_count: 1,
+    has_evidence: true,
     evidence: [
       {
         id: "ev-02",
@@ -159,17 +166,18 @@ export const MOCK_TASKS = [
   },
   {
     id: "task-003",
-    project_id: "a1b2c3d4-0000-0000-0000-000000000001",
+    project_id: "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
     title: "ESP32 LoRa Firmware Calibration",
     description: "Flash microcontrollers with sleep-cycle algorithms to conserve battery life in remote field boxes.",
     status: "Completed",
     priority: "Medium",
-    complexity: "Medium",
     assigned_to: "Denesh",
-    assigned_user_id: "e5f81ed6-1bc0-6b2a-1616-2b3a89a5fb12",
-    due_date: "2026-09-24",
+    assigned_user_id: "e5f81ed6-b1cf-4f20-1616-2f3f8905fbf2",
+    deadline: "2026-09-24T18:00:00Z",
     completed_at: "2026-09-25T11:00:00Z",
+    is_on_time: false,
     evidence_count: 1,
+    has_evidence: true,
     evidence: [
       {
         id: "ev-03",
@@ -182,32 +190,34 @@ export const MOCK_TASKS = [
   },
   {
     id: "task-004",
-    project_id: "a1b2c3d4-0000-0000-0000-000000000001",
+    project_id: "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
     title: "End-to-End Cypress Integration Tests",
     description: "Automate test suite covering login, workspace switching, and sensor data ingest.",
     status: "In Progress",
     priority: "Medium",
-    complexity: "Medium",
     assigned_to: "Aditya",
-    assigned_user_id: "f6a92fe7-2cd1-7c3b-2727-3c4b90b6ac23",
-    due_date: "2026-10-18",
+    assigned_user_id: "f6092fe7-c2d0-4f31-2727-3f4f90160c03",
+    deadline: "2026-10-18T18:00:00Z",
     completed_at: null,
+    is_on_time: null,
     evidence_count: 0,
+    has_evidence: false,
     evidence: [],
   },
   {
     id: "task-005",
-    project_id: "a1b2c3d4-0000-0000-0000-000000000001",
+    project_id: "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
     title: "Final Capstone Presentation Deck & Architecture Diagram",
     description: "Prepare academic defense presentation and high-resolution architecture export.",
-    status: "Todo",
+    status: "To Do",   // ← was "Todo" (missing space) — fixed to match validators.py
     priority: "High",
-    complexity: "Simple",
     assigned_to: "Abhaas",
     assigned_user_id: "c3d69cb4-9fae-4f0e-9494-0f1e67e3dfd0",
-    due_date: "2026-10-25",
+    deadline: "2026-10-25T18:00:00Z",
     completed_at: null,
+    is_on_time: null,
     evidence_count: 0,
+    has_evidence: false,
     evidence: [],
   },
 ]
@@ -219,7 +229,6 @@ export const MOCK_UPCOMING_DEADLINES = [
     project_name: "Smart Water Management System",
     due_date: "2026-10-18",
     priority: "High",
-    hours_left: 48,
     status: "In Progress",
   },
   {
@@ -227,100 +236,96 @@ export const MOCK_UPCOMING_DEADLINES = [
     title: "Final Capstone Presentation Deck",
     project_name: "Smart Water Management System",
     due_date: "2026-10-25",
-    priority: "Medium",
-    hours_left: 216,
-    status: "Todo",
+    priority: "High",
+    status: "To Do",
   },
 ]
 
+// ─── Evidence types match expanded AttachEvidenceSchema ───
 export const MOCK_EVIDENCE_ITEMS = [
   {
     id: "ev-01",
     task_id: "task-001",
     task_title: "Implement Real-Time Flow Rate Telemetry Dashboard",
-    author: "Abhaas",
-    author_id: "c3d69cb4-9fae-4f0e-9494-0f1e67e3dfd0",
+    member_name: "Abhaas",
+    user_id: "c3d69cb4-9fae-4f0e-9494-0f1e67e3dfd0",
     type: "github_pr",
     title: "Pull Request #42: Telemetry WebSockets & UI",
     url: "https://github.com/fairshare/water-mgmt/pull/42",
-    verified: true,
-    created_at: "2026-09-14T18:25:00Z",
-    metrics: "+480 / -32 lines · 4 commits",
+    submitted_at: "2026-09-14T18:25:00Z",
   },
   {
     id: "ev-02",
     task_id: "task-002",
     task_title: "Sensor Anomaly Notification API",
-    author: "Rohit",
-    author_id: "d4e70dc5-0abf-5a1f-0505-1a2f78f4ea01",
+    member_name: "Rohit",
+    user_id: "d4e70dc5-a0bf-4f1f-0505-1f2f78f4eae1",
     type: "github_pr",
     title: "Pull Request #44: Anomaly Detection Engine",
     url: "https://github.com/fairshare/water-mgmt/pull/44",
-    verified: true,
-    created_at: "2026-09-17T22:05:00Z",
-    metrics: "+320 / -18 lines · 3 commits",
+    submitted_at: "2026-09-17T22:05:00Z",
   },
   {
     id: "ev-03",
     task_id: "task-003",
     task_title: "ESP32 LoRa Firmware Calibration",
-    author: "Denesh",
-    author_id: "e5f81ed6-1bc0-6b2a-1616-2b3a89a5fb12",
+    member_name: "Denesh",
+    user_id: "e5f81ed6-b1cf-4f20-1616-2f3f8905fbf2",
     type: "document",
     title: "LoRa Battery Life Benchmarks.pdf",
     url: "https://storage.supabase.co/water-mgmt/benchmarks.pdf",
-    verified: true,
-    created_at: "2026-09-25T10:45:00Z",
-    metrics: "PDF (2.4 MB)",
+    submitted_at: "2026-09-25T10:45:00Z",
   },
 ]
 
+/**
+ * MOCK_CONTRIBUTION_BREAKDOWN
+ * 5 factors matching the README specification exactly:
+ *   Task Completion (30%) + Timeliness (20%) + Work Evidence (20%) +
+ *   Peer Feedback (20%) + Participation (10%) = 100%
+ *
+ * Scores match README benchmark: Abhaas = 82%
+ */
 export const MOCK_CONTRIBUTION_BREAKDOWN = {
-  overall_score: 94.2,
-  tier: "High Contributor",
-  grade_projection: "A+",
-  factors: [
-    {
-      name: "Task Completion",
-      weight: 30,
-      score: 100,
-      description: "6 of 6 prioritized tasks completed without abandonment.",
-      status: "optimal",
+  overall_score: 82,
+  breakdown: {
+    task_completion: {
+      weight: "30%",
+      score: 90.0,
+      weighted_contribution: 27.0,
+      explanation: "Completed 18 out of 20 assigned deliverables.",
     },
-    {
-      name: "Timeliness",
-      weight: 20,
-      score: 96,
-      description: "100% of deliverables submitted ahead of milestone cutoff.",
-      status: "optimal",
+    timeliness: {
+      weight: "20%",
+      score: 85.0,
+      weighted_contribution: 17.0,
+      explanation: "17 out of 20 tasks submitted on or before server deadline.",
     },
-    {
-      name: "Work Volume",
-      weight: 20,
-      score: 92,
-      description: "Highest commit velocity & 8 verified pull request merges.",
-      status: "high",
+    work_evidence: {
+      weight: "20%",
+      score: 80.0,
+      weighted_contribution: 16.0,
+      explanation: "16 tasks backed by verified links or uploaded files.",
     },
-    {
-      name: "Task Complexity",
-      weight: 15,
-      score: 90,
-      description: "Successfully spearheaded High and Critical difficulty modules.",
-      status: "high",
+    peer_feedback: {
+      weight: "20%",
+      score: 75.0,
+      weighted_contribution: 15.0,
+      explanation: "Aggregated 3.75 / 5.0 across 6 evaluation dimensions from teammates.",
     },
-    {
-      name: "Peer Review",
-      weight: 15,
-      score: 93,
-      description: "Average 4.8 / 5.0 peer evaluation rating across 3 teammates.",
-      status: "optimal",
+    participation: {
+      weight: "10%",
+      score: 70.0,
+      weighted_contribution: 7.0,
+      explanation: "Logged 21 verified project actions against team benchmark.",
     },
-  ],
+  },
+  // ─── Trend data: week labels match analytics_routes.py ("Week N" format) ───
   trend_data: [
-    { week: "W1", Abhaas: 88, Rohit: 85, Denesh: 80, Aditya: 70 },
-    { week: "W2", Abhaas: 91, Rohit: 87, Denesh: 82, Aditya: 72 },
-    { week: "W3", Abhaas: 93, Rohit: 90, Denesh: 81, Aditya: 71 },
-    { week: "W4", Abhaas: 94.2, Rohit: 91.5, Denesh: 83, Aditya: 72.8 },
+    { week: "Week 1", Abhaas: 55, Rohit: 50, Denesh: 40, Aditya: 45 },
+    { week: "Week 2", Abhaas: 67, Rohit: 62, Denesh: 54, Aditya: 50 },
+    { week: "Week 3", Abhaas: 76, Rohit: 70, Denesh: 62, Aditya: 58 },
+    { week: "Week 4", Abhaas: 82, Rohit: 76, Denesh: 68, Aditya: 61 },
   ],
 }
 

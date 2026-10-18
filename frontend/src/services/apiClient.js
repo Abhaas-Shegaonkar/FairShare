@@ -301,6 +301,7 @@ export const contributionService = {
       const res = await apiClient.get(`/projects/${projectId}/contribution/${userId}`)
       return res.data
     } catch {
+      // Return the breakdown shape matching the backend scoring engine response
       return { success: true, data: MOCK_CONTRIBUTION_BREAKDOWN }
     }
   },
@@ -310,7 +311,16 @@ export const contributionService = {
       const res = await apiClient.get(`/projects/${projectId}/team-comparison`)
       return res.data
     } catch {
-      return { success: true, data: MOCK_TEAM_MEMBERS }
+      // Return team members with their fair_score as the comparison list
+      return {
+        success: true,
+        data: MOCK_TEAM_MEMBERS.map((m) => ({
+          user_id: m.id,
+          name: m.name,
+          role: m.role,
+          score: m.fair_score,
+        })),
+      }
     }
   },
 

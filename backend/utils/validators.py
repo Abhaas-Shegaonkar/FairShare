@@ -194,7 +194,10 @@ class UpdateTaskStatusSchema(BaseModel):
 class AttachEvidenceSchema(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
-    type: Literal["link", "file"] = Field(..., description="'link' for URLs or 'file' for uploads")
+    type: Literal["link", "file", "github", "github_pr", "figma", "document"] = Field(
+        ...,
+        description="Evidence subtype: 'github'/'github_pr' for PRs, 'figma' for design boards, 'document' for PDFs/docs, 'link' for general URLs, 'file' for uploaded storage artifacts"
+    )
     title: str = Field(..., min_length=1, max_length=255)
     url: str = Field(..., min_length=3, max_length=2048)
     notes: Optional[str] = Field(default="", max_length=1000)

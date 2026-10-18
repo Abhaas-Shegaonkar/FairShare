@@ -340,8 +340,13 @@ pip install -r requirements.txt
 cp .env.example .env
 # Fill in SUPABASE_URL, SUPABASE_KEY, and JWT_SECRET
 
-# Start Flask development server
+# Start Flask development server (choose one):
+# Option A — using flask run (requires FLASK_APP):
+set FLASK_APP=app.py   # Windows
+# export FLASK_APP=app.py  # Linux/macOS
 flask run --port=5000
+# Option B — directly (simpler):
+python app.py
 ```
 
 ### 3. Frontend Setup
